@@ -1,148 +1,380 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
 /// Character controller script to handle player input and movement states.
 /// </summary>
-
-public class CharacterController : MonoBehaviour
+[RequireComponent(typeof(UnityEngine.CharacterController))]
+public class PlayerMovementController : MonoBehaviour
 {
- #region Movement States
-    public enum MovementState // enum defines every movement state //
+    #region Movement States
+    public enum MovementState
     {
         Idle,
         Walking,
         Running,
         Jumping,
-        wallRunning,
+        Sliding,
+        WallRunning
     }
-[Header("State")]
-[SerializeField] private MovementState currentState = MovementState.Walking;
-#endregion
 
-#region Movement Settings
-[Header("Idle")]
-// when nothing is pressing pressed or used //
-[Header("Walking")]
-[SerializeField] private float walkSpeed = 5.2f; // Walking speed 
-[SerializeField] private float sprintSpeed = 7f; // running speed 
-[SerializeField] private float crouchSpeed = 3f; // crouched speed 
+    [Header("State")]
+    [SerializeField] private MovementState currentState = MovementState.Idle;
+    #endregion
 
-[Header("Jumping")]
-[SerializeField] private float jumpForce = 7f; // force of jump strength
-[SerializeField] private float gravity = 5.2f; 
-[SerializeField] private float graceTime = 0.2f; // period after leaving ground
-[SerializeField] private float JumpTime = 0.2f; // period before landing
+    #region Movement Settings
+    [Header("Walking")]
+    [SerializeField] private float walkSpeed = 5.2f;
+    [SerializeField] private float sprintSpeed = 7f;
+    [SerializeField] private float crouchSpeed = 3f;
 
-[Header("Sliding")]
-[SerializeField] private float slideSpeed = 10f;
-[SerializeField] private float slideDuration = 1f;
-[SerializeField] private float slideControlStrength = 0.3f;
+    [Header("Jumping")]
+    [SerializeField] private float jumpForce = 7f;
+    [SerializeField] private float gravity = 9.81f;
+    [SerializeField] private float graceTime = 0.2f;
+    [SerializeField] private float jumpBufferTime = 0.2f;
 
-[Header("Wall Running")]
-[SerializeField] private float wallRunSpeed = 6f;
-[SerializeField] private float wallRunDuration = 2f;
-[SerializeField] private float wallJumpForce = 10f;
-[SerializeField] private float wallCheckDistance = 0.7f;
+    [Header("Sliding")]
+    [SerializeField] private float slideSpeed = 10f;
+    [SerializeField] private float slideDuration = 1f;
+    [SerializeField] private float slideControlStrength = 0.3f;
 
-[Header("Ground Detection")]
-[SerializeField] private float groundCheckDistance = 0.3f;
-[SerializeField] private LayerMask groundLayer;
-[SerializeField] private Transform groundCheck; // Empty child object at feet
-#endregion
+    [Header("Wall Running")]
+    [SerializeField] private float wallRunSpeed = 6f;
+    [SerializeField] private float wallRunDuration = 2f;
+    [SerializeField] private float wallJumpForce = 10f;
+    [SerializeField] private float wallCheckDistance = 0.7f;
+    [SerializeField] private float wallRunGravity = 2f;
 
-#region Component 
+    [Header("Ground Detection")]
+    [SerializeField] private float groundCheckDistance = 0.3f;
+    [SerializeField] private LayerMask groundLayer;
+    [SerializeField] private Transform groundCheck;
+    #endregion
 
-private CharacterController controller;
-private PlayerInput playerInput;
+    #region Components
+    private CharacterController controller;
+    private PlayerInput playerInput;
+    public Camera myCamera;
+    #endregion
 
-#endregion
+    #region Movement Variables
+    private Vector3 velocity;
+    private Vector2 moveInput;
+    private bool isGrounded;
+    private bool wasGrounded;
+    private float graceTimeCounter;
+    private float jumpBufferCounter;
+    private float slideTimer;
+    private Vector3 slideDirection;
+    private float wallRunTimer;
+    private Vector3 wallNormal;
+    private bool isWallRight;
+    private bool isWallLeft;
+    private bool isSprinting;
+    private bool isSliding;
+    private bool jumpPressed;
+    #endregion
 
-#region Movement Variables
-
-private Vector3 velocity;
-private Vector2 moveInput;
-private bool isGrounded;
-private bool wasGrounded;
-
- private float graceTimeCounter;
-
-private float jumpTimeCounter;
-
-private float slideTimeCounter;
-private float slideTimer;
-private Vector3 slideDirection;
-
-private float wallRunTimeCounter;
-private Vector3 wallNormal;
-private bool isWallRight;
-private bool isWallLeft;
-
-#endregion
-
-#region Initialization
-public Camera MyCamera;
-
-     void Awake()
+    #region Initialization
+    void Awake()
     {
+        controller = GetComponent<CharacterController>();
+        playerInput = GetComponent<PlayerInput>();
 
-     if (Controller == null)
+        if (controller == null)
             Debug.LogError("CharacterController component missing!");
+        if (myCamera == null)
+            myCamera = Camera.main;
     }
-     void Update()
-    {
-        HandleMovement();
-        CheckGroundStatus();
-        UpdateMovementState();
-        //==============================//
-        float x = input.getAxis("Horizontal");
-        float z = input.getAxis("Vertical");
-        //==============================//
-        Vector3 movement = new Vector3(x, 0, z);
-        //==============================//
-        Vector3 rotatedMovement = MyCamera.transform.rotation * movement;
-        //==============================//
-        MyController.Move(movement * walkSpeed * Time.deltaTime);
 
+    void Update()
+    {
+        CheckGroundStatus();
+        HandleTimers();
+        CheckWallRun();
+        HandleMovement();
+        UpdateMovementState();
+        ApplyMovement();
     }
     #endregion
 
-      private void HandleMovement()
+    #region Input Handling
+    public void OnMove(InputAction.CallbackContext context)
     {
-         switch (currentState)
-{
-            case MovementState.Walking:
-                HandleWalking();
-                break;
-            case MovementState.Sprinting:
-                HandleSprinting();
-                break;
-            case MovementState.Crouching:
-                HandleCrouching();
-                break;
-            case MovementState.Sliding:
-                HandleSliding();
-                break;
-            case MovementState.WallRunning:
-                HandleWallRunning();
-                break;
-            default:
-                HandleWalking(); // Fallback
-                break;
-}
+        moveInput = context.ReadValue<Vector2>();
+    }
 
+    public void OnJump(InputAction.CallbackContext context)
+    {
+        if (context.performed)
+        {
+            jumpPressed = true;
+            jumpBufferCounter = jumpBufferTime;
+        }
+    }
+
+    public void OnSprint(InputAction.CallbackContext context)
+    {
+        isSprinting = context.performed || context.started;
+    }
+
+    public void OnSlide(InputAction.CallbackContext context)
+    {
+        if (context.performed && isGrounded && moveInput.magnitude > 0.1f)
+        {
+            StartSlide();
+        }
+    }
+    #endregion
+
+    #region Timers
+    private void HandleTimers()
+    {
+        // Coyote time
+        if (isGrounded)
+            graceTimeCounter = graceTime;
+        else
+            graceTimeCounter -= Time.deltaTime;
+
+        // Jump buffer
+        if (jumpBufferCounter > 0)
+            jumpBufferCounter -= Time.deltaTime;
+
+        // Slide timer
+        if (isSliding)
+        {
+            slideTimer -= Time.deltaTime;
+            if (slideTimer <= 0)
+                isSliding = false;
+        }
+
+        // Wall run timer
+        if (currentState == MovementState.WallRunning)
+        {
+            wallRunTimer -= Time.deltaTime;
+            if (wallRunTimer <= 0)
+                currentState = MovementState.Jumping;
+        }
+    }
+    #endregion
+
+    #region Ground Check
     private void CheckGroundStatus()
     {
         wasGrounded = isGrounded;
         isGrounded = Physics.CheckSphere(groundCheck.position, groundCheckDistance, groundLayer);
-        if (isGrounded && velocity.y < 0);
+
+        if (isGrounded && velocity.y < 0)
         {
-            velocity.y = -2f; // Small negative value to keep grounded
+            velocity.y = -2f;
         }
-       
-        
+
+        // Landing
+        if (!wasGrounded && isGrounded)
+        {
+            isSliding = false;
+        }
+    }
+    #endregion
+
+    #region Wall Running
+    private void CheckWallRun()
+    {
+        isWallRight = Physics.Raycast(transform.position, transform.right, out RaycastHit rightHit, wallCheckDistance, groundLayer);
+        isWallLeft = Physics.Raycast(transform.position, -transform.right, out RaycastHit leftHit, wallCheckDistance, groundLayer);
+
+        if (!isGrounded && (isWallRight || isWallLeft) && moveInput.magnitude > 0.1f)
+        {
+            if (currentState != MovementState.WallRunning)
+            {
+                wallRunTimer = wallRunDuration;
+                currentState = MovementState.WallRunning;
+            }
+
+            wallNormal = isWallRight ? rightHit.normal : leftHit.normal;
+        }
+        else if (currentState == MovementState.WallRunning)
+        {
+            currentState = MovementState.Jumping;
+        }
+    }
+    #endregion
+
+    #region Movement
+    private void HandleMovement()
+    {
+        switch (currentState)
+        {
+            case MovementState.Idle:
+            case MovementState.Walking:
+            case MovementState.Running:
+                HandleGroundMovement();
+                break;
+
+            case MovementState.Jumping:
+                HandleAirMovement();
+                break;
+
+            case MovementState.Sliding:
+                HandleSlideMovement();
+                break;
+
+            case MovementState.WallRunning:
+                HandleWallRunMovement();
+                break;
+        }
+
+        HandleJump();
+        ApplyGravity();
     }
 
-     
+    private void HandleGroundMovement()
+    {
+        Vector3 forward = myCamera.transform.forward;
+        Vector3 right = myCamera.transform.right;
+        forward.y = 0;
+        right.y = 0;
+        forward.Normalize();
+        right.Normalize();
 
+        float speed = isSprinting ? sprintSpeed : walkSpeed;
+        Vector3 moveDirection = (forward * moveInput.y + right * moveInput.x) * speed;
+
+        controller.Move(moveDirection * Time.deltaTime);
+    }
+
+    private void HandleAirMovement()
+    {
+        Vector3 forward = myCamera.transform.forward;
+        Vector3 right = myCamera.transform.right;
+        forward.y = 0;
+        right.y = 0;
+        forward.Normalize();
+        right.Normalize();
+
+        Vector3 moveDirection = (forward * moveInput.y + right * moveInput.x) * walkSpeed * 0.8f;
+        controller.Move(moveDirection * Time.deltaTime);
+    }
+
+    private void HandleSlideMovement()
+    {
+        Vector3 controlInput = new Vector3(moveInput.x, 0, moveInput.y) * slideControlStrength;
+        Vector3 slideMove = (slideDirection + controlInput) * slideSpeed;
+        controller.Move(slideMove * Time.deltaTime);
+    }
+
+    private void HandleWallRunMovement()
+    {
+        Vector3 forward = myCamera.transform.forward;
+        forward.y = 0;
+        forward.Normalize();
+
+        Vector3 wallForward = Vector3.Cross(wallNormal, Vector3.up);
+        if (Vector3.Dot(wallForward, forward) < 0)
+            wallForward = -wallForward;
+
+        controller.Move(wallForward * wallRunSpeed * Time.deltaTime);
+
+        // Apply reduced gravity during wall run
+        velocity.y += -wallRunGravity * Time.deltaTime;
+    }
+
+    private void StartSlide()
+    {
+        isSliding = true;
+        slideTimer = slideDuration;
+        currentState = MovementState.Sliding;
+
+        Vector3 forward = myCamera.transform.forward;
+        forward.y = 0;
+        forward.Normalize();
+        slideDirection = forward;
+    }
+
+    private void HandleJump()
+    {
+        // Jump with buffer and coyote time
+        if (jumpBufferCounter > 0 && (graceTimeCounter > 0 || currentState == MovementState.WallRunning))
+        {
+            if (currentState == MovementState.WallRunning)
+            {
+                // Wall jump
+                velocity.y = wallJumpForce;
+                Vector3 jumpDir = wallNormal * 5f + Vector3.up;
+                controller.Move(jumpDir * Time.deltaTime);
+                currentState = MovementState.Jumping;
+            }
+            else
+            {
+                // Normal jump
+                velocity.y = jumpForce;
+                currentState = MovementState.Jumping;
+            }
+
+            jumpBufferCounter = 0;
+            graceTimeCounter = 0;
+            jumpPressed = false;
+        }
+    }
+
+    private void ApplyGravity()
+    {
+        if (!isGrounded && currentState != MovementState.WallRunning)
+        {
+            velocity.y -= gravity * Time.deltaTime;
+        }
+    }
+
+    private void ApplyMovement()
+    {
+        controller.Move(velocity * Time.deltaTime);
+    }
+    #endregion
+
+    #region State Management
+    private void UpdateMovementState()
+    {
+        if (currentState == MovementState.Sliding ||
+            currentState == MovementState.WallRunning ||
+            currentState == MovementState.Jumping && !isGrounded)
+            return;
+
+        if (!isGrounded)
+        {
+            currentState = MovementState.Jumping;
+        }
+        else if (moveInput.magnitude < 0.1f)
+        {
+            currentState = MovementState.Idle;
+        }
+        else if (isSprinting)
+        {
+            currentState = MovementState.Running;
+        }
+        else
+        {
+            currentState = MovementState.Walking;
+        }
+
+        if (isSliding)
+            currentState = MovementState.Sliding;
+    }
+    #endregion
+
+    #region Debug
+    private void OnDrawGizmosSelected()
+    {
+        if (groundCheck != null)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(groundCheck.position, groundCheckDistance);
+        }
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawRay(transform.position, transform.right * wallCheckDistance);
+        Gizmos.DrawRay(transform.position, -transform.right * wallCheckDistance);
+    }
+    #endregion
 }
