@@ -27,7 +27,6 @@ public class PlayerMovementController : MonoBehaviour
     [Header("Walking")]
     [SerializeField] private float walkSpeed = 5.2f;
     [SerializeField] private float sprintSpeed = 7f;
-    [SerializeField] private float crouchSpeed = 3f;
 
     [Header("Jumping")]
     [SerializeField] private float jumpForce = 7f;
@@ -54,7 +53,7 @@ public class PlayerMovementController : MonoBehaviour
     #endregion
 
     #region Components
-    private CharacterController controller;
+    private UnityEngine.CharacterController controller;
     private PlayerInput playerInput;
     public Camera myCamera;
     #endregion
@@ -74,13 +73,12 @@ public class PlayerMovementController : MonoBehaviour
     private bool isWallLeft;
     private bool isSprinting;
     private bool isSliding;
-    private bool jumpPressed;
     #endregion
 
     #region Initialization
     void Awake()
     {
-        controller = GetComponent<CharacterController>();
+        controller = GetComponent<UnityEngine.CharacterController>();
         playerInput = GetComponent<PlayerInput>();
 
         if (controller == null)
@@ -91,12 +89,39 @@ public class PlayerMovementController : MonoBehaviour
 
     void Update()
     {
+        // Fallback to old Input system if Input Actions aren't set up
+        if (playerInput == null || playerInput.actions == null)
+        {
+            HandleLegacyInput();
+        }
+
         CheckGroundStatus();
         HandleTimers();
         CheckWallRun();
         HandleMovement();
         UpdateMovementState();
         ApplyMovement();
+    }
+
+    private void HandleLegacyInput()
+    {
+        // WASD / Arrow keys
+        moveInput = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+
+        // Space for jump
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            jumpBufferCounter = jumpBufferTime;
+        }
+
+        // Left Shift for sprint
+        isSprinting = Input.GetKey(KeyCode.LeftShift);
+
+        // Left Control for slide
+        if (Input.GetKeyDown(KeyCode.LeftControl) && isGrounded && moveInput.magnitude > 0.1f)
+        {
+            StartSlide();
+        }
     }
     #endregion
 
@@ -110,7 +135,6 @@ public class PlayerMovementController : MonoBehaviour
     {
         if (context.performed)
         {
-            jumpPressed = true;
             jumpBufferCounter = jumpBufferTime;
         }
     }
@@ -315,7 +339,6 @@ public class PlayerMovementController : MonoBehaviour
 
             jumpBufferCounter = 0;
             graceTimeCounter = 0;
-            jumpPressed = false;
         }
     }
 
@@ -375,6 +398,16 @@ public class PlayerMovementController : MonoBehaviour
         Gizmos.color = Color.red;
         Gizmos.DrawRay(transform.position, transform.right * wallCheckDistance);
         Gizmos.DrawRay(transform.position, -transform.right * wallCheckDistance);
+    }
+
+    // Add this to see debug info in the Inspector
+    private void OnGUI()
+    {
+        GUI.Label(new Rect(10, 10, 300, 20), $"State: {currentState}");
+        GUI.Label(new Rect(10, 30, 300, 20), $"Move Input: {moveInput}");
+        GUI.Label(new Rect(10, 50, 300, 20), $"Is Grounded: {isGrounded}");
+        GUI.Label(new Rect(10, 70, 300, 20), $"Velocity: {velocity}");
+        GUI.Label(new Rect(10, 90, 300, 20), $"Sprint: {isSprinting}");
     }
     #endregion
 }
