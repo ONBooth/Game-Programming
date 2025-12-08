@@ -110,12 +110,12 @@ Material:
     - _DstBlend: 0
     - _DstBlendAlpha: 0
     - _EnvironmentReflections: 1
-    - _Fader: 0.1
-    - _Fill: 0.53
+    - _Fader: 0.0801
+    - _Fill: 0.39
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
-    - _Height: 0.228
+    - _Height: 0.461
     - _Metallic: 0
     - _OcclusionStrength: 1
     - _Outline: 0.08
@@ -123,14 +123,14 @@ Material:
     - _QueueControl: 0
     - _QueueOffset: 0
     - _ReceiveShadows: 1
-    - _Rotation: 0.47
+    - _Rotation: 2.25
     - _Smoothness: 0.5
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
     - _Surface: 0
-    - _Width: 0.354
+    - _Width: 0.08
     - _WorkflowMode: 1
     - _ZWrite: 1
     m_Colors:

@@ -1,0 +1,26 @@
+.header {
+    font-size: 40px;
+    -unity-text-align: upper-center;
+    color: rgb(0, 0, 0);
+    -unity-text-outline-color: rgb(0, 0, 0);
+}
+
+.button {
+    font-size: 20px;
+    width: 220px;
+    height: 60px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+    border-bottom-left-radius: 10px;
+    background-color: rgb(92, 154, 149);
+    background-image: url("project://database/Assets/LeanTween/Examples/Material/Futuro_ButtonBack.psd?fileID=21300000&guid=b3abce7efa3854a4cb1dd6b47f553027&type=3#Futuro_ButtonBack");
+    transition-duration: 0.35s;
+    transition-timing-function: ease-out-back;
+}
+
+.button:hover {
+    scale: 1.1 1.1;
+    background-color: rgb(132, 1, 255);
+    -unity-background-image-tint-color: rgb(255, 255, 255);
+}
