@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class Particlesystem : MonoBehaviour
+public class Particle_System : MonoBehaviour
 {
     private ParticleSystem auraParticles;
     
@@ -29,7 +29,7 @@ public class Particlesystem : MonoBehaviour
         main.startLifetime = 1.5f;
         main.startSpeed = 2f;
         main.startSize = 0.3f;
-        main.startColor = new Color(0.7f, 0.2f, 1f); // initial color
+        main.startColor = new Color(0.2f, 0.6f, 1f, 0.8f); // initial color
         main.maxParticles = 200;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
         
@@ -45,9 +45,9 @@ public class Particlesystem : MonoBehaviour
         Gradient grad = new Gradient();
         grad.SetKeys(
             new GradientColorKey[] { 
-                new GradientColorKey(Color. white, 0f),
-                new GradientColorKey(new Color(1f, 0.9f, 0.2f), 0.5f),
-                new GradientColorKey(new Color(1f, 0.7f, 0f), 1f)
+               new GradientColorKey(new Color(0.5f, 0.8f, 1f), 0f),  // Light blue
+                new GradientColorKey(new Color(0.2f, 0.5f, 1f), 0.5f),  // Medium blue
+                new GradientColorKey(new Color(0f, 0.3f, 0.8f), 1f)  // Dark blue
             },
             new GradientAlphaKey[] { 
                 new GradientAlphaKey(0.8f, 0f),
